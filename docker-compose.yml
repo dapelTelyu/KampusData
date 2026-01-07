@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  # --- SERVICE LAYER ---
+  
+  # 1. Auth Service (Daffa)
+  auth-service:
+    build: ./auth-service
+    ports: ["4001:4000"]
+    environment:
+      - PORT=4000
+      - DB_HOST=db-auth
+      - JWT_SECRET=rahasia_super_aman
+    depends_on:
+      - db-auth
+    networks:
+      - app-net
+      - auth-db-net
+
+  # 2. Student Service (Elsa)
+  student-service:
+    build: ./student-service
+    ports: ["4002:4000"]
+    environment:
+      - PORT=4000
+      - MONGO_URI=mongodb://db-student:27017/student_db
+    depends_on:
+      - db-student
+    networks:
+      - app-net
+      - stud-db-net
+
+  # 3. Finance Service (Rifat)
+  finance-service:
+    build: ./finance-service
+    ports: ["4003:4000"]
+    environment:
+      - PORT=4000
+      - MONGO_URI=mongodb://db-finance:27017/finance_db
+    depends_on:
+      - db-finance
+    networks:
+      - app-net
+      - fin-db-net
+
+  # 4. Academic Service (Daffa - Orchestrator)
+  academic-service:
+    build: ./academic-service
+    ports: ["4004:4000"]
+    environment:
+      - PORT=4000
+      - MONGO_URI=mongodb://db-academic:27017/academic_db
+      - FINANCE_SERVICE_URL=http://finance-service:4000/graphql
+      # Nanti diganti URL Ngrok saat demo integrasi
+      - LIBRABOOK_API_URL=http://host.docker.internal:5003/graphql
+    # TAMBAHAN PENTING UNTUK WINDOWS/LINUX:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - db-academic
+      - finance-service
+    networks:
+      - app-net
+      - acad-db-net
+
+  # --- DATABASE LAYER (Isolated) ---
+  
+  db-auth:
+    image: postgres:alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: auth_db
+    networks:
+      - auth-db-net
+  
+  db-student:
+    image: mongo:latest
+    networks:
+      - stud-db-net
+
+  db-finance:
+    image: mongo:latest
+    networks:
+      - fin-db-net
+
+  db-academic:
+    image: mongo:latest
+    networks:
+      - acad-db-net
+
+# --- NETWORK LAYER ---
+networks:
+  app-net:     # Jaringan Komunikasi Antar Service
+  auth-db-net: # Private DB Auth
+  stud-db-net: # Private DB Student
+  fin-db-net:  # Private DB Finance
+  acad-db-net: # Private DB Academic
